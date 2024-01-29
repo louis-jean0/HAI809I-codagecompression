@@ -227,7 +227,9 @@ int indiceImage(int x, int y, int width) {
    }
    return y * width + x;
 }
+/*===========================================================================*/
 
+/*===========================================================================*/
 int indiceImageCouleur(char C, int x, int y, int width) {
 
    int indice;
@@ -254,7 +256,9 @@ int indiceImageCouleur(char C, int x, int y, int width) {
    return (3 * ((y * width) + x)) + indice;
 
 }
+/*===========================================================================*/
 
+/*===========================================================================*/
 void erosion_binaire(OCTET *ImgIn, OCTET *ImgOut, int nH, int nW) {
 
    for(int x = 1; x < nW - 1; x++) { // Bons indices pour respecter les problèmes sur les bords
@@ -274,7 +278,9 @@ void erosion_binaire(OCTET *ImgIn, OCTET *ImgOut, int nH, int nW) {
          }
    }
 }
+/*===========================================================================*/
 
+/*===========================================================================*/
 void dilatation_binaire(OCTET *ImgIn, OCTET *ImgOut, int nH, int nW) {
 
    for(int x = 1; x < nW - 1; x++) { // Bons indices pour respecter les problèmes sur les bords
@@ -294,14 +300,18 @@ void dilatation_binaire(OCTET *ImgIn, OCTET *ImgOut, int nH, int nW) {
       }
    }
 }
+/*===========================================================================*/
 
+/*===========================================================================*/
 double distance_euclidienne_ppm(OCTET pixel1[3], OCTET pixel2[3]) {
    return sqrt(pow(pixel2[0] - pixel1[0],2) +
                pow(pixel2[1] - pixel1[1],2) +
                pow(pixel2[2] - pixel1[2],2));
 }
+/*===========================================================================*/
 
-void k_mean_2(OCTET* ImgIn, OCTET* ImgOutDebut, OCTET* ImgOutFinale, int nTaille, OCTET couleur1[3], OCTET couleur2[3]) {
+/*===========================================================================*/
+void k_mean_2(OCTET* ImgIn, OCTET* ImgOutDebut, OCTET* ImgOutIteration, OCTET* ImgOutFinale, int nTaille, OCTET couleur1[3], OCTET couleur2[3]) {
 
    bool changement;
    int* clusterAssignments = (int*)malloc(nTaille*sizeof(int));
@@ -312,7 +322,7 @@ void k_mean_2(OCTET* ImgIn, OCTET* ImgOutDebut, OCTET* ImgOutFinale, int nTaille
       changement = false;
       cpt++;
       for(int i = 0; i < nTaille; i++) {
-         int currentPixelIdx = i * 3;
+         int currentPixelIdx = 3 * i;
          OCTET currentPixel[3] = {ImgIn[currentPixelIdx],ImgIn[currentPixelIdx+1],ImgIn[currentPixelIdx+2]};
 
          double distance_pixel_couleur1 = distance_euclidienne_ppm(currentPixel,couleur1);
@@ -340,15 +350,15 @@ void k_mean_2(OCTET* ImgIn, OCTET* ImgOutDebut, OCTET* ImgOutFinale, int nTaille
          }
       }
 
-      // Sortie de l'image de la première itération
+      // Sortie de l'image avec les couleurs initiales
       if(debut) {
-         for(int i = 0; i < nTaille; i++) {
-            int currentPixelIdx = 3 * i;
-            ImgOutDebut[currentPixelIdx] = ImgOutFinale[currentPixelIdx];
-            ImgOutDebut[currentPixelIdx+1] = ImgOutFinale[currentPixelIdx+1];
-            ImgOutDebut[currentPixelIdx+2] = ImgOutFinale[currentPixelIdx+2];
-         }
+         memcpy(ImgOutDebut, ImgOutFinale, nTaille * 3 * sizeof(OCTET));
          debut = false;
+      }
+
+      // Sortie de l'image de la première itération
+      if(cpt == 2) {
+         memcpy(ImgOutIteration, ImgOutFinale, nTaille * 3 * sizeof(OCTET));
       }
 
       // Mise à jour des centroïdes
@@ -357,16 +367,16 @@ void k_mean_2(OCTET* ImgIn, OCTET* ImgOutDebut, OCTET* ImgOutFinale, int nTaille
       int count1 = 0, count2 = 0;
 
       for(int i = 0; i < nTaille; i++) {
-         int currentPixelIdx = i * 3;
+         int currentPixelIdx = 3 * i;
          if (clusterAssignments[i] == 1) {
-               sum1[0] += ImgOutFinale[currentPixelIdx];
-               sum1[1] += ImgOutFinale[currentPixelIdx + 1];
-               sum1[2] += ImgOutFinale[currentPixelIdx + 2];
+               sum1[0] += ImgIn[currentPixelIdx];
+               sum1[1] += ImgIn[currentPixelIdx + 1];
+               sum1[2] += ImgIn[currentPixelIdx + 2];
                count1++;
          } else {
-               sum2[0] += ImgOutFinale[currentPixelIdx];
-               sum2[1] += ImgOutFinale[currentPixelIdx + 1];
-               sum2[2] += ImgOutFinale[currentPixelIdx + 2];
+               sum2[0] += ImgIn[currentPixelIdx];
+               sum2[1] += ImgIn[currentPixelIdx + 1];
+               sum2[2] += ImgIn[currentPixelIdx + 2];
                count2++;
          }
       }
@@ -388,4 +398,94 @@ void k_mean_2(OCTET* ImgIn, OCTET* ImgOutDebut, OCTET* ImgOutFinale, int nTaille
 
    printf("Couleur 1 : %d %d %d\n",couleur1[0],couleur1[1],couleur1[2]);
    printf("Couleur 2 : %d %d %d\n",couleur2[0],couleur2[1],couleur2[2]);
+}
+/*===========================================================================*/
+
+void k_mean_256(OCTET* ImgIn, OCTET* ImgOutDebut, OCTET* ImgOutIteration, OCTET* ImgOutFinale, int nTaille, OCTET couleurs[256][3]) {
+   bool changement;
+   int* clusterAssignments = (int*)malloc(nTaille * sizeof(int));
+   memset(clusterAssignments, 0, nTaille * sizeof(int));
+   bool debut = true;
+   int cpt = 0;
+   int MAX_ITERATIONS = 10;
+   do {
+      changement = false;
+      cpt++;
+      for(int i = 0; i < nTaille; i++) {
+         int currentPixelIdx = 3 * i;
+         OCTET currentPixel[3] = {ImgIn[currentPixelIdx], ImgIn[currentPixelIdx+1], ImgIn[currentPixelIdx+2]};
+         int closestCluster = 0;
+         double minDistance = std::numeric_limits<double>::max();
+
+         for(int j = 0; j < 256; j++) {
+            double distance = distance_euclidienne_ppm(currentPixel, couleurs[j]);
+            if(distance < minDistance) {
+               closestCluster = j;
+               minDistance = distance;
+            }
+         }
+
+         if(clusterAssignments[i] != closestCluster) {
+            clusterAssignments[i] = closestCluster;
+            changement = true;
+         }
+      }
+
+      // Sortie de l'image avec les couleurs initiales
+      if(debut) {
+            for (int i = 0; i < nTaille; i++) {
+                int clusterIdx = clusterAssignments[i];
+                int currentPixelIdx = 3 * i;
+                for (int j = 0; j < 3; j++) {
+                    ImgOutDebut[currentPixelIdx + j] = couleurs[clusterIdx][j];
+                }
+            }
+            debut = false;
+      }
+
+      // Sortie de l'image de la première itération
+      if (cpt == 2) {
+            for (int i = 0; i < nTaille; i++) {
+                int clusterIdx = clusterAssignments[i];
+                int currentPixelIdx = 3 * i;
+                for (int j = 0; j < 3; j++) {
+                    ImgOutIteration[currentPixelIdx + j] = couleurs[clusterIdx][j];
+                }
+            }
+      }
+
+      // Mise à jour des centroïdes
+      int sum[256][3] = {{0}};
+      int count[256] = {0};
+
+      for(int i = 0; i < nTaille; i++) {
+         int clusterIdx = clusterAssignments[i];
+         int currentPixelIdx = 3 * i;
+         for(int j = 0; j < 3; j++) {
+            sum[clusterIdx][j] += ImgIn[currentPixelIdx + j];
+         }
+         count[clusterIdx]++;
+      }
+
+      for(int i = 0; i < 256; i++) {
+         if(count[i] > 0) {
+            for(int j = 0; j < 3; j++) {
+               couleurs[i][j] = sum[i][j] / count[i];
+            }
+         }
+      }
+      printf("%d\n",cpt);
+   } while(changement && cpt < MAX_ITERATIONS);
+
+   // Création de l'image finale
+   for(int i = 0; i < nTaille; i++) {
+      int clusterIdx = clusterAssignments[i];
+      int currentPixelIdx = 3 * i;
+      for(int j = 0; j < 3; j++) {
+         ImgOutFinale[currentPixelIdx + j] = couleurs[clusterIdx][j];
+      }
+   }
+
+   printf("Itérations : %d\n", cpt);
+   free(clusterAssignments);
 }
