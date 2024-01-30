@@ -35,24 +35,14 @@ int main(int argc, char* argv[]) {
     planG(ImgG,ImgIn,nTaille);
     planB(ImgB,ImgIn,nTaille);
 
-    OCTET *ImgR_echantillonnee, *ImgG_echantillonnee;
-
-    allocation_tableau(ImgR_echantillonnee,OCTET,nTaille/4);
-    allocation_tableau(ImgG_echantillonnee,OCTET,nTaille/4);
-
-    echantillonner_image_facteur_4(ImgR,ImgR_echantillonnee,nH,nW);
-    echantillonner_image_facteur_4(ImgG,ImgG_echantillonnee,nH,nW);
-
-    ecrire_image_pgm(nomImageR,ImgR_echantillonnee,nH/2,nW/2);
-    ecrire_image_pgm(nomImageG,ImgG_echantillonnee,nH/2,nW/2);
+    ecrire_image_pgm(nomImageR,ImgR,nH,nW);
+    ecrire_image_pgm(nomImageG,ImgG,nH,nW);
     ecrire_image_pgm(nomImageB,ImgB,nH,nW);
 
     free(ImgIn);
     free(ImgR);
     free(ImgG);
     free(ImgB);
-    free(ImgR_echantillonnee);
-    free(ImgG_echantillonnee);
 
     return 0;
 

@@ -312,13 +312,14 @@ double distance_euclidienne_ppm(OCTET pixel1[3], OCTET pixel2[3]) {
 
 /*===========================================================================*/
 void echantillonner_image_facteur_4(OCTET* ImgIn, OCTET* ImgOut, int nH, int nW) { // Divise le nombre de lignes et de colonnes par 2
+   OCTET pixel1, pixel2, pixel3, pixel4, pixel_moyen;
    for(int i = 0; i < nH / 2; i++) {
       for(int j = 0; j < nW / 2; j++) {
-         OCTET pixel1 = ImgIn[indiceImage(2*i,2*j,nW)];
-         OCTET pixel2 = ImgIn[indiceImage(2*i,2*j+1,nW)];
-         OCTET pixel3 = ImgIn[indiceImage(2*i+1,2*j+1,nW)];
-         OCTET pixel4 = ImgIn[indiceImage(2*i+1,2*j+1,nW)];
-         OCTET pixel_moyen = (pixel1 + pixel2 + pixel3 + pixel4) / 4;
+         pixel1 = ImgIn[indiceImage(2*i,2*j,nW)];
+         pixel2 = ImgIn[indiceImage(2*i,2*j+1,nW)];
+         pixel3 = ImgIn[indiceImage(2*i+1,2*j+1,nW)];
+         pixel4 = ImgIn[indiceImage(2*i+1,2*j+1,nW)];
+         pixel_moyen = (pixel1 + pixel2 + pixel3 + pixel4) / 4;
          ImgOut[indiceImage(i,j,nW/2)] = pixel_moyen; 
       }
    }
@@ -327,15 +328,16 @@ void echantillonner_image_facteur_4(OCTET* ImgIn, OCTET* ImgOut, int nH, int nW)
 
 /*===========================================================================*/
 void re_echantillonner_image_facteur_4(OCTET* ImgIn, OCTET* ImgOut, int nH, int nW) {
+   OCTET pixel1, pixel2, pixel3, pixel4, pixel_interpole;
    for(int i = 0; i < nH; i++) {
       for(int j = 0; j < nW; j++) {
          int x = i/2;
          int y = j/2;
-         OCTET pixel1 = ImgIn[indiceImage(x,y,nW/2)];
-         OCTET pixel2 = ImgIn[indiceImage(x+1,y,nW/2)];
-         OCTET pixel3 = ImgIn[indiceImage(x,y+1,nW/2)];
-         OCTET pixel4 = ImgIn[indiceImage(x+1,y+1,nW/2)];
-         OCTET pixel_interpole = (pixel1 + pixel2 + pixel3 + pixel4) / 4;
+         pixel1 = ImgIn[indiceImage(x,y,nW/2)];
+         if(x+1 < nH/2) pixel2 = ImgIn[indiceImage(x+1,y,nW/2)]; else pixel2 = pixel1;
+         if(y+1 < nW/2) pixel3 = ImgIn[indiceImage(x,y+1,nW/2)]; else pixel3 = pixel1;
+         if(x+1 < nH/2 && y+1 < nW/2) pixel4 = ImgIn[indiceImage(x+1,y+1,nW/2)]; else pixel4 = pixel1;
+         pixel_interpole = (pixel1 + pixel2 + pixel3 + pixel4) / 4;
          ImgOut[indiceImage(i,j,nW)] = pixel_interpole;
       }
    }
@@ -350,3 +352,42 @@ void reconstruire_ppm(OCTET* ImgR, OCTET* ImgG, OCTET* ImgB, OCTET* ImgOut, int 
          ImgOut[3*i+2] = ImgB[i];
       }
 }
+/*===========================================================================*/
+
+/*===========================================================================*/
+void RGBtoYCbCr(OCTET* ImgIn, OCTET* ImgY, OCTET* ImgCb, OCTET* ImgCr, int nTaille) {
+   OCTET *ImgR, *ImgG, *ImgB;
+
+   allocation_tableau(ImgR,OCTET,nTaille);
+   allocation_tableau(ImgG,OCTET,nTaille);
+   allocation_tableau(ImgB,OCTET,nTaille);
+
+   planR(ImgR,ImgIn,nTaille);
+   planG(ImgG,ImgIn,nTaille);
+   planB(ImgB,ImgIn,nTaille);
+
+   for(int i = 0; i < nTaille; i++) {
+      ImgY[i] = 0.299*ImgR[i] + 0.587*ImgG[i] + 0.114*ImgB[i];
+      ImgCb[i] = -0.1687*ImgR[i] - 0.3313*ImgG[i] + 0.5*ImgB[i] + 128;
+      ImgCr[i] = 0.5*ImgR[i] - 0.4187*ImgG[i] - 0.0813*ImgB[i] + 128;
+   }
+}
+/*===========================================================================*/
+
+/*===========================================================================*/
+void reconstruire_ppm_depuis_YCbCr(OCTET* ImgY, OCTET* ImgCb, OCTET* ImgCr, OCTET* ImgOut, int nTaille) {
+    for (int i = 0; i < nTaille; i++) {
+        int Y = ImgY[i];
+        int Cb = ImgCb[i];
+        int Cr = ImgCr[i];
+
+        int R = std::min(std::max(0, Y + static_cast<int>(1.402 * (Cr - 128))), 255);
+        int G = std::min(std::max(0, Y - static_cast<int>(0.34414 * (Cb - 128)) - static_cast<int>(0.71414 * (Cr - 128))), 255);
+        int B = std::min(std::max(0, Y + static_cast<int>(1.772 * (Cb - 128))), 255);
+
+        ImgOut[3*i] = static_cast<OCTET>(R);
+        ImgOut[3*i+1] = static_cast<OCTET>(G);
+        ImgOut[3*i+2] = static_cast<OCTET>(B);
+    }
+}
+/*===========================================================================*/

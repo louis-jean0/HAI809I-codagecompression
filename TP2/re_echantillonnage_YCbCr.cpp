@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
     re_echantillonner_image_facteur_4(ImgMinorant1,ImgMinorant1ReEchantillonnee,nH,nW);
     re_echantillonner_image_facteur_4(ImgMinorant2,ImgMinorant2ReEchantillonnee,nH,nW);
 
-    reconstruire_ppm(ImgMinorant1ReEchantillonnee, ImgMinorant2ReEchantillonnee, ImgDominante, ImgOut, nTaille); // Il faut ImgR, ImgG et ImgB dans cet ordre
+    reconstruire_ppm_depuis_YCbCr(ImgMinorant1ReEchantillonnee, ImgDominante, ImgMinorant1ReEchantillonnee, ImgOut, nTaille); // Il faut ImgR, ImgG et ImgB dans cet ordre
     
     ecrire_image_ppm(nomImageOut,ImgOut,nH,nW);
 
