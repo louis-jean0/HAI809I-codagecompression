@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
     allocation_tableau(ImgCb_echantillonnee,OCTET,nTaille/4);
 
     echantillonner_image_facteur_4(ImgY,ImgY_echantillonnee,nH,nW);
-    echantillonner_image_facteur_4(ImgCr,ImgCb_echantillonnee,nH,nW);
+    echantillonner_image_facteur_4(ImgCb,ImgCb_echantillonnee,nH,nW);
 
     ecrire_image_pgm(nomImageY,ImgY_echantillonnee,nH/2,nW/2);
     ecrire_image_pgm(nomImageCb,ImgCb_echantillonnee,nH/2,nW/2);
