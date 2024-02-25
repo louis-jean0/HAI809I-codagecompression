@@ -391,3 +391,23 @@ void reconstruire_ppm_depuis_YCbCr(OCTET* ImgY, OCTET* ImgCb, OCTET* ImgCr, OCTE
     }
 }
 /*===========================================================================*/
+
+/*===========================================================================*/
+int clamp(OCTET value, OCTET min, OCTET max) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+}
+/*===========================================================================*/
+
+double PSNR_pgm(OCTET *ImgOriginale, OCTET *Img2, int nH, int nW) {
+   int nTaille = nH * nW;
+   double MSE = 0.0;
+    for(int i = 0; i < nTaille; i++) {
+        MSE += pow(ImgOriginale[i] - Img2[i],2);
+    }
+    MSE /= nTaille;
+
+    double PSNR = 10.0 * log10((255 * 255) / MSE);
+    return PSNR;
+}
