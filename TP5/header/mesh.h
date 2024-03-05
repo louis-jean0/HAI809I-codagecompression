@@ -79,6 +79,9 @@ public:
     // Distorsion measures
     static double computeSequenceMeshRMSE(const Mesh &meshRef, const Mesh &meshComp);
     static double computeMeshHausdorff(const Mesh &meshRef, const Mesh &meshComp);
+
+    // Distance euclidienne entre deux points du Mesh
+    static double distanceEuclidienne(const Eigen::Vector3f A, const Eigen::Vector3f B);
 };
 
 #endif

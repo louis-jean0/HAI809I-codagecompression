@@ -189,6 +189,48 @@ void Mesh::computeGlobalMeshTransform()
 ////////      3D  COMPRESSION      ////////
 ///////////////////////////////////////////
 
+Eigen::Vector3f minVector(std::vector<Eigen::Vector3f> &V) { // Créé un vecteur contenant les x, y, z minimaux du vecteur passé en paramètre
+    size_t V_size = V.size();
+    float minX = std::numeric_limits<float>::max();
+    float minY = std::numeric_limits<float>::max();
+    float minZ = std::numeric_limits<float>::max();
+
+    for(size_t i = 0; i < V_size; i++) {
+        if(V[i][0] < minX) {
+            minX = V[i][0];
+        }
+        if(V[i][1] < minY) {
+            minY = V[i][1];
+        }
+        if(V[i][2] < minZ) {
+            minZ = V[i][2];
+        }
+    }
+    return Eigen::Vector3f(minX,minY,minZ);
+}
+
+Eigen::Vector3f maxVector(const std::vector<Eigen::Vector3f> &V) { // Créé un vecteur contenant les x, y, z maximaux du vecteur passé en paramètre
+    size_t V_size = V.size();
+    float maxX = -std::numeric_limits<float>::max();
+    float maxY = -std::numeric_limits<float>::max();
+    float maxZ = -std::numeric_limits<float>::max();
+
+    for(size_t i = 0; i < V_size; i++) {
+        if(V[i][0] > maxX) {
+            maxX = V[i][0];
+        }
+
+        if(V[i][1] > maxY) {
+            maxY = V[i][1];
+        }
+
+        if(V[i][2] > maxZ) {
+            maxZ = V[i][2];
+        }
+    }
+    return Eigen::Vector3f(maxX,maxY,maxZ);
+}
+
 void Mesh::init_quantization(int qp)
 {
     std::cout << "[MeshCompression3D] - init_quantization : Start..." << std::endl;
@@ -209,6 +251,14 @@ void Mesh::init_quantization(int qp)
     // (Eigen::Vector3f) this->qInfo_.minBoundingBox
     // (Eigen::Vector3f) this->qInfo_.maxBoundingBox
     // (double) this->qInfo_.range
+
+    this->qInfo_.minBoundingBox = minVector(this->vertices_);
+    this->qInfo_.maxBoundingBox = maxVector(this->vertices_);
+    double range_x = this->qInfo_.maxBoundingBox[0] - this->qInfo_.minBoundingBox[0];
+    double range_y = this->qInfo_.maxBoundingBox[1] - this->qInfo_.minBoundingBox[1];
+    double range_z = this->qInfo_.maxBoundingBox[2] - this->qInfo_.minBoundingBox[2];
+    this->qInfo_.range = std::max({range_x,range_y,range_z});
+    std::cout<<this->qInfo_.range<<std::endl;
 }
 
 void Mesh::encode_geometry_quantization()
@@ -226,7 +276,17 @@ void Mesh::encode_geometry_quantization()
     //
     // ACTUALISER :
     // (std::vector<unsigned int>) this->qInfo_.quantizedVertices [Le vecteur est en une dimension pour XYZ!]
+
+    for(size_t i = 0; i < sizeV; i++) {
+        unsigned int quant_x = (this->vertices_[i][0] - this->qInfo_.minBoundingBox[0]) * (pow(2,this->qInfo_.qp)/this->qInfo_.range);
+        unsigned int quant_y = (this->vertices_[i][1] - this->qInfo_.minBoundingBox[1]) * (pow(2,this->qInfo_.qp)/this->qInfo_.range);
+        unsigned int quant_z = (this->vertices_[i][2] - this->qInfo_.minBoundingBox[2]) * (pow(2,this->qInfo_.qp)/this->qInfo_.range);
+        this->qInfo_.quantizedVertices[3*i] = (unsigned int)(quant_x + 0.5);
+        this->qInfo_.quantizedVertices[3*i+1] = (unsigned int)(quant_y + 0.5);
+        this->qInfo_.quantizedVertices[3*i+2] = (unsigned int)(quant_z + 0.5);
+    }
 }
+
 void Mesh::decode_geometry_quantization()
 {
     std::cout << "[MeshCompression3D] - decode_geometry_quantization : Start..." << std::endl;
@@ -241,6 +301,12 @@ void Mesh::decode_geometry_quantization()
     //
     // ACTUALISER :
     // (std::vector<Eigen::Vector3f>) this->vertices_
+
+    for(size_t i = 0; i < sizeV; i++) {
+        this->vertices_[i][0] = this->qInfo_.quantizedVertices[3*i] * (this->qInfo_.range / (pow(2,this->qInfo_.qp) - 1)) + this->qInfo_.minBoundingBox[0];
+        this->vertices_[i][1] = this->qInfo_.quantizedVertices[3*i+1] * (this->qInfo_.range / (pow(2,this->qInfo_.qp) - 1)) + this->qInfo_.minBoundingBox[1];
+        this->vertices_[i][2] = this->qInfo_.quantizedVertices[3*i+2] * (this->qInfo_.range / (pow(2,this->qInfo_.qp) - 1)) + this->qInfo_.minBoundingBox[2];
+    }
 }
 
 void Mesh::encode_geometry_rANS()
@@ -257,6 +323,7 @@ void Mesh::encode_geometry_rANS()
     // - Fréquence Cumulee (C)
     // ---> Produire un entier naturel non signé dont le type est suffisamment grand pour stocker votre maillage
 }
+
 void Mesh::decode_geometry_rANS()
 {
     std::cout << "[MeshCompression3D] - decode_geometry_rANS : Start..." << std::endl;
@@ -280,6 +347,7 @@ void Mesh::encode_mesh(int qp)
     this->encode_geometry_quantization();
     this->encode_geometry_rANS();
 }
+
 void Mesh::decode_mesh()
 {
     this->decode_geometry_quantization();
@@ -313,13 +381,32 @@ double Mesh::computeSequenceMeshRMSE(const Mesh &meshRef, const Mesh &meshComp)
     // SORTIE :
     // (double) distance RMSE entre meshRef et meshComp
 
-    return 0.0;
+    double mse_x = 0.0;
+    double mse_y = 0.0;
+    double mse_z = 0.0;
+    double MSE = 0.0;
+    for(size_t i = 0; i < sizeV; i++) {
+        mse_x += pow(meshRef.vertices_[i][0] - meshComp.vertices_[i][0],2);
+        mse_y += pow(meshRef.vertices_[i][1] - meshComp.vertices_[i][1],2);
+        mse_z += pow(meshRef.vertices_[i][2] - meshComp.vertices_[i][2],2);
+    }
+    MSE = (1./3.)*((mse_x/sizeV) + (mse_y/sizeV) + (mse_z/sizeV));
+    double RMSE = sqrt(MSE);
+
+    return RMSE;
+}
+
+double Mesh::distanceEuclidienne(const Eigen::Vector3f A, const Eigen::Vector3f B) {
+    return sqrt(pow(B[0] - A[0],2) + pow(B[1] - A[1],2) + pow(B[2] - A[2],2));
 }
 
 double Mesh::computeMeshHausdorff(const Mesh &meshRef, const Mesh &meshComp)
 {
     const std::vector<Eigen::Vector3f> &verticesRef = meshRef.vertices_;
     const std::vector<Eigen::Vector3f> &verticesComp = meshComp.vertices_;
+
+    size_t sizeRef = verticesRef.size();
+    size_t sizeComp = verticesComp.size();
 
     // --- TODO_EX1 --- //
     // PARAMETRES :
@@ -328,5 +415,31 @@ double Mesh::computeMeshHausdorff(const Mesh &meshRef, const Mesh &meshComp)
     // SORTIE :
     // (double) distance Hausdorff entre meshRef et meshComp
 
-    return 0.0;
+    std::vector<double> minDistance(sizeRef,std::numeric_limits<double>::max());
+    for(size_t i = 0; i < sizeRef; i++) {
+        for(size_t j = 0; j < sizeComp; j++) {
+            double distance = distanceEuclidienne(meshRef.vertices_[i],meshComp.vertices_[j]);
+            if(distance < minDistance[i]) {
+                minDistance[i] = distance;
+            }
+        }
+    }
+
+    auto maxMinDistance = std::max_element(std::begin(minDistance),std::end(minDistance));
+    double Haussdorff1 = *maxMinDistance;
+
+    minDistance.resize(sizeComp,std::numeric_limits<double>::max());
+    for(size_t i = 0; i < sizeComp; i++) {
+        for(size_t j = 0; j < sizeRef; j++) {
+            double distance = distanceEuclidienne(meshComp.vertices_[i],meshRef.vertices_[j]);
+            if(distance < minDistance[i]) {
+                minDistance[i] = distance;
+            }
+        }
+    }
+
+    maxMinDistance = std::max_element(std::begin(minDistance),std::end(minDistance));
+    double Haussdorff2 = *maxMinDistance;
+
+    return std::max(Haussdorff1,Haussdorff2);
 }
