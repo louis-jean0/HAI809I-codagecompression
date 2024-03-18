@@ -46,7 +46,7 @@ int main(int argc, char **argv)
         std::cout << "Distance Hausdorff : " << Mesh::computeMeshHausdorff(meshInit, meshResult) << std::endl;
 
         // --- Run --- //
-        glHandler.run(1600, 900, "TP5 - Compression3D [HAI819I]");
+        glHandler.run(700, 700, "TP5 - Compression3D [HAI819I]");
 
         return EXIT_SUCCESS;
     }

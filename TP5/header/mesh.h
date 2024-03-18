@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <vector>
+#include <map>
 #include <fstream>
 #include <cstdlib>
 
@@ -27,6 +28,9 @@ private:
     std::vector<Eigen::Vector3f> vertices_;
     std::vector<Eigen::Vector3f> normals_;
     std::vector<std::array<unsigned int, 3>> triangles_;
+    std::map<unsigned int, unsigned int> frequences;
+    std::map<unsigned int, unsigned int> frequencesCumulees;
+    unsigned long long valeurCodee;
 
     // Global
     Eigen::Affine3f transform_;

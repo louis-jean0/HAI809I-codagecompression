@@ -1,4 +1,6 @@
 #include "mesh.h"
+#include <cmath>
+#include <cstddef>
 
 ///////////////////////////////////////////
 ////////    CONSTRUCTOR / CLONE    ////////
@@ -258,7 +260,6 @@ void Mesh::init_quantization(int qp)
     double range_y = this->qInfo_.maxBoundingBox[1] - this->qInfo_.minBoundingBox[1];
     double range_z = this->qInfo_.maxBoundingBox[2] - this->qInfo_.minBoundingBox[2];
     this->qInfo_.range = std::max({range_x,range_y,range_z});
-    std::cout<<this->qInfo_.range<<std::endl;
 }
 
 void Mesh::encode_geometry_quantization()
@@ -322,6 +323,35 @@ void Mesh::encode_geometry_rANS()
     // - Fréquence (F)
     // - Fréquence Cumulee (C)
     // ---> Produire un entier naturel non signé dont le type est suffisamment grand pour stocker votre maillage
+
+    size_t M = this->qInfo_.quantizedVertices.size();
+
+    std::map<unsigned int, unsigned int> frequences;
+    for(auto v : this->qInfo_.quantizedVertices) {
+        frequences[v]++;
+    }
+
+    std::map<unsigned int, unsigned int> frequencesCumulees;
+    unsigned int somme = 0;
+    for(auto& [v,freq] : frequences) {
+        frequencesCumulees[v] = somme;
+        somme += freq; 
+    }
+
+    std::vector<unsigned long long> xi;
+    xi.push_back(0);
+
+    for(size_t i = 1; i < M; i++) {
+        unsigned int symbole = this->qInfo_.quantizedVertices[i];
+        unsigned int current = std::floor(xi[i-1]/frequences[symbole]) * M + frequencesCumulees[symbole] + (xi[i-1] % frequences[symbole]);
+        xi.push_back(current);
+        //std::cout<<"i : "<<i<<" -> "<<current<<std::endl;
+    }
+
+    this->frequences = frequences;
+    this->frequencesCumulees = frequencesCumulees;
+    this->valeurCodee = xi[M-1];
+    std::cout<<valeurCodee<<std::endl;
 }
 
 void Mesh::decode_geometry_rANS()
@@ -338,6 +368,34 @@ void Mesh::decode_geometry_rANS()
     // - Fréquence Cumulee (C)
     // - Fonction de fréquence cumulée inverse
     // ---> (std::vector<unsigned int>) this->qInfo_.quantizedVertices [Le vecteur est en une dimension pour XYZ!]
+
+    size_t M = this->qInfo_.quantizedVertices.size();
+
+    std::map<unsigned int, unsigned int> symbolFreq = this->frequences;
+    std::map<unsigned int, unsigned int> frequencesCumulees = this->frequencesCumulees;
+    unsigned long long valeurCodee = this->valeurCodee;
+    std::vector<unsigned int> symbolesDecodes;
+
+    for(size_t i = M; i > 0; i--) {
+        unsigned int symbole;
+        unsigned long long slot = valeurCodee % M;
+        // Fréquence cumulée inverse ici
+        for(const auto& [v, freqCumulee] : frequencesCumulees) {
+            if(slot < freqCumulee) {
+                symbole = v;
+                break;
+            }
+        }
+        symbolesDecodes.push_back(symbole);
+        //std::cout<<"i : "<<i<<" -> "<<valeurCodee<<std::endl;
+        valeurCodee = std::floor(valeurCodee/M) * frequences[symbole] + slot - frequencesCumulees[symbole]; 
+    }
+
+    std::cout<<valeurCodee<<std::endl;
+
+    std::reverse(symbolesDecodes.begin(),symbolesDecodes.end());
+    this->qInfo_.quantizedVertices = symbolesDecodes;
+
 }
 
 void Mesh::encode_mesh(int qp)
@@ -350,8 +408,8 @@ void Mesh::encode_mesh(int qp)
 
 void Mesh::decode_mesh()
 {
-    this->decode_geometry_quantization();
     this->decode_geometry_rANS();
+    this->decode_geometry_quantization();
 
     this->computeNormals();
     this->computeGlobalMeshTransform();
